@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 
-
 def read_file(file_path,**kwargs):
     # Automatically pulls the appropriate pandas read function
     # Requires all necessary keyword arguments to be passed
@@ -33,9 +32,17 @@ def read_file(file_path,**kwargs):
     except:
         raise
 
+def can_convert_to_datetime(series):
+    # Checks if a series can be converted to a datetime
+    try:
+        pd.to_datetime(series, errors='raise')
+        return True
+    except (ValueError, TypeError):
+        return False
 
 def infer_dtypes(file_path, sample_size = 1000):
-    # infers the dtypes based on the first 1000 rows in a file. Override with larger sample for larger datasets
+    # infers the dtypes based on the first 1000 rows in a file. 
+    # Override with larger sample for larger datasets
     # Downcasts integers, floats and converts most objects to categories
     # Usful for saving memory on large datasets
 
@@ -59,5 +66,26 @@ def infer_dtypes(file_path, sample_size = 1000):
         return inferred_dtypes
     except:
         raise
+
+def standard_headers_lower(df):
+    # standardizes headers to loweracse
+    # removes preceding and trailing spaces
+    # replaces remaining spaces with underscores
+    try:
+        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+        return df
+    except:
+        raise
+        
+def standard_headers_upper(df):
+    # standardizes headers to loweracse
+    # removes preceding and trailing spaces
+    # replaces remaining spaces with underscores
+    try:
+        df.columns = df.columns.str.strip().str.upper().str.replace(' ', '_')
+        return df
+    except:
+        raise
+
 
 
