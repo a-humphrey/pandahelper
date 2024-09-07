@@ -115,13 +115,18 @@ class pandahelper:
         except Exception as e:
             raise ValueError(f"Failed to standardize headers: {e}")
 
-    def auto_date_table(start_date,end_date=None,  periods=None, freq='D',):
+    def auto_date_table(start_date,end_date=None, periods=None,eval_date=None, freq='D'):
         """
         Create a date table starting from `start_date` with a specified number of periods and frequency.
         Also adds boolean filters relative to the date the dataframe is created
+
+        start_date = Begining Date
+        end_date   = final_date
+        eval_date  = optional argument to determine what the present day is. Pass string in 'YYYY-MM-DD' format. 
+                     defaults to the date the dataframe is built
         """
          # Create a date range starting from 'start_date' with 'periods' number of periods
-       
+         
         date_range = pd.date_range(start=start_date,end=end_date, periods=periods, freq=freq)
 
         # Create a DataFrame from the date range
@@ -130,7 +135,11 @@ class pandahelper:
         # Add additional date-related columns
         date_table['year'] = date_table['date'].dt.year
         date_table['month'] = date_table['date'].dt.month
+        date_table['quarter'] = date_table['date'].dt.quarter
+        date_table['week_number'] = date_table['date'].dt.isocalendar().week
         date_table['day'] = date_table['date'].dt.day
+        date_table['day_of_year'] = date_table['date'].dt.day_of_year
+        
         date_table['day_of_week'] = date_table['date'].dt.day_name()
         date_table['is_weekend'] = date_table['day_of_week'].isin(['Saturday', 'Sunday'])
         
@@ -140,20 +149,36 @@ class pandahelper:
         date_table['month_start_date'] = date_table['date'].dt.to_period('M').dt.start_time
         date_table['week_start_date'] = date_table['date'].dt.to_period('W').dt.start_time
         
-        # Add creation date column (current date and time)
-        date_table['creation_ts'] = datetime.now()#.strftime('%Y-%m-%dT%H:%M:%S')
+        date_table['creation_ts'] = datetime.now()
 
-        date_table['current_year'] = date_table['creation_ts'].dt.to_period('Y').dt.start_time
-        date_table['current_quarter'] = date_table['creation_ts'].dt.to_period('Q').dt.start_time
-        date_table['current_month'] = date_table['creation_ts'].dt.to_period('M').dt.start_time
-        date_table['current_week'] = date_table['creation_ts'].dt.to_period('W').dt.start_time
+        if eval_date == None:
+            date_table['eval_date'] = date_table['creation_ts']
+        else:
+            date_table['eval_date'] =pd.to_datetime(eval_date, format='%Y-%m-%d')
+
+        date_table['eval_year'] = date_table['eval_date'].dt.year
+        date_table['eval_month'] = date_table['eval_date'].dt.month
+        date_table['eval_quarter'] = date_table['eval_date'].dt.quarter
+        date_table['eval_week_number'] = date_table['eval_date'].dt.isocalendar().week
+        date_table['eval_day'] = date_table['eval_date'].dt.day
+        date_table['eval_day_of_year'] = date_table['eval_date'].dt.dayofyear
+
+        date_table['year_start_eval_date'] = date_table['eval_date'].dt.to_period('Y').dt.start_time
+        date_table['quarter_start_eval_date'] = date_table['eval_date'].dt.to_period('Q').dt.start_time
+        date_table['month_start_eval_date'] = date_table['eval_date'].dt.to_period('M').dt.start_time
+        date_table['week_start_eval_date'] = date_table['eval_date'].dt.to_period('W').dt.start_time
         
-        date_table['last_year'] = (date_table['creation_ts'] - pd.offsets.YearBegin(2)).dt.to_period('Y').dt.start_time
-        date_table['last_quarter'] = (date_table['creation_ts'] - pd.offsets.QuarterBegin(1)).dt.to_period('Q').dt.start_time
-        date_table['last_month'] = (date_table['creation_ts'] - pd.offsets.MonthBegin(1)).dt.to_period('M').dt.start_time
-        date_table['last_week'] = (date_table['creation_ts'] - pd.offsets.Week(weekday=0)).dt.to_period('W').dt.start_time
+        date_table['current_year'] = date_table['eval_date'].dt.to_period('Y').dt.start_time
+        date_table['current_quarter'] = date_table['eval_date'].dt.to_period('Q').dt.start_time
+        date_table['current_month'] = date_table['eval_date'].dt.to_period('M').dt.start_time
+        date_table['current_week'] = date_table['eval_date'].dt.to_period('W').dt.start_time
+        
+        date_table['last_year'] = (date_table['eval_date'] - pd.offsets.YearBegin(2)).dt.to_period('Y').dt.start_time
+        date_table['last_quarter'] = (date_table['eval_date'] - pd.offsets.QuarterBegin(1)).dt.to_period('Q').dt.start_time
+        date_table['last_month'] = (date_table['eval_date'] - pd.offsets.MonthBegin(1)).dt.to_period('M').dt.start_time
+        date_table['last_week'] = (date_table['eval_date'] - pd.offsets.Week(weekday=0)).dt.to_period('W').dt.start_time
 
-        date_table['current_year'] = date_table['year_start_date'] == date_table['current_year']
+        date_table['is_current_year'] = date_table['year_start_date'] == date_table['current_year']
         date_table['is_current_quarter'] = date_table['quarter_start_date'] == date_table['current_quarter']
         date_table['is_current_month'] = date_table['week_start_date'] == date_table['current_month']
         date_table['is_current_week'] = date_table['week_start_date'] == date_table['current_week']
@@ -161,8 +186,29 @@ class pandahelper:
         date_table['is_last_year'] = date_table['year_start_date'] == date_table['last_year']
         date_table['is_last_quarter'] = date_table['quarter_start_date'] == date_table['last_quarter']
         date_table['is_last_month'] = date_table['week_start_date'] == date_table['last_month']
-        date_table['islast_week'] = date_table['week_start_date'] == date_table['last_week']
+        date_table['is_last_week'] = date_table['week_start_date'] == date_table['last_week']
+
+        date_table['is_complete_year'] = date_table['year_start_date'] < date_table['current_year']       
+        date_table['is_complete_quarter'] = date_table['quarter_start_date'] < date_table['current_quarter']
+        date_table['is_complete_month'] = date_table['month_start_date'] < date_table['current_month']
+        date_table['is_complete_week'] = date_table['week_start_date'] < date_table['current_week']
+        
+        date_table['is_yoy_ytd_day_incl'] = date_table['day_of_year'] <= date_table['eval_day_of_year']
+        date_table['is_yoy_ytd_day_excl'] = date_table['day_of_year'] < date_table['eval_day_of_year']
+        date_table['is_yoy_complete_quarter'] = date_table['quarter'] < date_table['eval_quarter']
+        date_table['is_yoy_complete_month'] = date_table['month'] < date_table['eval_month']
+        date_table['is_yoy_complete_week'] = date_table['week_number'] < date_table['eval_week_number']
+
+        date_table['is_today_or_before'] = date_table['date'] <= date_table['eval_date']
+        date_table['is_before_today'] = date_table['date'] < date_table['eval_date']
+        
+        date_table['is_current_year_ytd_quarter'] = date_table['is_current_year']*date_table['is_complete_quarter'] 
+        date_table['is_current_year_ytd_month'] = date_table['is_current_year']*date_table['is_complete_month'] 
+        date_table['is_current_year_ytd_week'] = date_table['is_current_year']*date_table['is_complete_week'] 
+
+        date_table['is_last_year_ytd_quarter'] = date_table['is_last_year']*date_table['is_yoy_complete_quarter']
+        date_table['is_last_year_ytd_month'] = date_table['is_current_year']*date_table['is_yoy_complete_month']
+        date_table['is_last_year_ytd_week'] = date_table['is_current_year']*date_table['is_complete_week'] 
 
         return date_table
-        
     
