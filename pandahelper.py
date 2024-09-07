@@ -1,3 +1,4 @@
+from datetime import datetime
 import pandas as pd
 import os
 
@@ -15,10 +16,11 @@ class pandahelper:
     
     @classmethod
     def read_file(cls, file_path,**kwargs):
-        # Automatically pulls the appropriate pandas read function
-        # Requires all necessary keyword arguments to be passed
-        # Requires all relevant dependencies to run
-
+        """
+        Automatically pulls the appropriate pandas read function
+        Requires all necessary keyword arguments to be passed
+        Requires all relevant dependencies to run
+        """
         pandas_read_functions = {
         ".csv": pd.read_csv,
         ".xlsx": pd.read_excel,
@@ -58,11 +60,13 @@ class pandahelper:
 
     @classmethod
     def infer_dtypes(cls,file_path,sample_size = 1000 ):
-        # infers the dtypes based on the first 1000 rows in a file. 
-        # Override with larger sample for larger datasets
-        # Downcasts integers, floats and converts most objects to categories
-        # Usful for saving memory on large datasets
-
+        """
+        infers the dtypes based on the first 1000 rows in a file. 
+        Override with larger sample for larger datasets
+        Downcasts integers, floats and converts most objects to categories
+        Usful for saving memory on large datasets
+        Does not parse dates. Will do that separately
+        """
         try:
            
             # Step 1: Read a sample of the data
@@ -88,9 +92,11 @@ class pandahelper:
             raise
         
     def standard_headers_lower(self):
-        # standardizes headers to loweracse
-        # removes preceding and trailing spaces
-        # replaces remaining spaces with underscores
+        """
+        standardizes headers to loweracse
+        removes preceding and trailing spaces
+        replaces remaining spaces with underscores
+        """
         try:
             self._df.columns = self._df.columns.str.strip().str.lower().str.replace(' ', '_')
             return self  # Return self for chaining
@@ -98,13 +104,65 @@ class pandahelper:
             raise ValueError(f"Failed to standardize headers: {e}")
 
     def standard_headers_upper(self):
-        # standardizes headers to loweracse
-        # removes preceding and trailing spaces
-        # replaces remaining spaces with underscores
+        """
+        standardizes headers to loweracse
+        removes preceding and trailing spaces
+        replaces remaining spaces with underscores
+        """
         try:
             self._df.columns = self._df.columns.str.strip().str.upper().str.replace(' ', '_')
             return self  # Return self for chaining
         except Exception as e:
             raise ValueError(f"Failed to standardize headers: {e}")
+
+    def auto_date_table(start_date,end_date=None,  periods=None, freq='D',):
+        """
+        Create a date table starting from `start_date` with a specified number of periods and frequency.
+        Also adds boolean filters relative to the date the dataframe is created
+        """
+         # Create a date range starting from 'start_date' with 'periods' number of periods
+       
+        date_range = pd.date_range(start=start_date,end=end_date, periods=periods, freq=freq)
+
+        # Create a DataFrame from the date range
+        date_table = pd.DataFrame({'date': date_range})
+
+        # Add additional date-related columns
+        date_table['year'] = date_table['date'].dt.year
+        date_table['month'] = date_table['date'].dt.month
+        date_table['day'] = date_table['date'].dt.day
+        date_table['day_of_week'] = date_table['date'].dt.day_name()
+        date_table['is_weekend'] = date_table['day_of_week'].isin(['Saturday', 'Sunday'])
+        
+        # Start dates (use dt.to_period and then convert back to timestamp)
+        date_table['year_start_date'] = date_table['date'].dt.to_period('Y').dt.start_time
+        date_table['quarter_start_date'] = date_table['date'].dt.to_period('Q').dt.start_time
+        date_table['month_start_date'] = date_table['date'].dt.to_period('M').dt.start_time
+        date_table['week_start_date'] = date_table['date'].dt.to_period('W').dt.start_time
+        
+        # Add creation date column (current date and time)
+        date_table['creation_ts'] = datetime.now()#.strftime('%Y-%m-%dT%H:%M:%S')
+
+        date_table['current_year'] = date_table['creation_ts'].dt.to_period('Y').dt.start_time
+        date_table['current_quarter'] = date_table['creation_ts'].dt.to_period('Q').dt.start_time
+        date_table['current_month'] = date_table['creation_ts'].dt.to_period('M').dt.start_time
+        date_table['current_week'] = date_table['creation_ts'].dt.to_period('W').dt.start_time
+        
+        date_table['last_year'] = (date_table['creation_ts'] - pd.offsets.YearBegin(2)).dt.to_period('Y').dt.start_time
+        date_table['last_quarter'] = (date_table['creation_ts'] - pd.offsets.QuarterBegin(1)).dt.to_period('Q').dt.start_time
+        date_table['last_month'] = (date_table['creation_ts'] - pd.offsets.MonthBegin(1)).dt.to_period('M').dt.start_time
+        date_table['last_week'] = (date_table['creation_ts'] - pd.offsets.Week(weekday=0)).dt.to_period('W').dt.start_time
+
+        date_table['current_year'] = date_table['year_start_date'] == date_table['current_year']
+        date_table['is_current_quarter'] = date_table['quarter_start_date'] == date_table['current_quarter']
+        date_table['is_current_month'] = date_table['week_start_date'] == date_table['current_month']
+        date_table['is_current_week'] = date_table['week_start_date'] == date_table['current_week']
+
+        date_table['is_last_year'] = date_table['year_start_date'] == date_table['last_year']
+        date_table['is_last_quarter'] = date_table['quarter_start_date'] == date_table['last_quarter']
+        date_table['is_last_month'] = date_table['week_start_date'] == date_table['last_month']
+        date_table['islast_week'] = date_table['week_start_date'] == date_table['last_week']
+
+        return date_table
         
     
